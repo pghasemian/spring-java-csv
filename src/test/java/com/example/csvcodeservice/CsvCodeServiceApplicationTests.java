@@ -1,4 +1,4 @@
-package com.example.csv_code_service;
+package com.example.csvcodeservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
