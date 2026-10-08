@@ -20,13 +20,13 @@ public class CodeService {
 
     private final CodeRepository codeRepository;
     private final CsvParserService csvParserService;
+    private final KafkaProducerService kafkaProducerService;
 
-    public CodeService(
-            CodeRepository codeRepository,
-            CsvParserService csvParserService
-    ) {
+    public CodeService(CodeRepository codeRepository, CsvParserService csvParserService,
+                       KafkaProducerService kafkaProducerService) {
         this.codeRepository = codeRepository;
         this.csvParserService = csvParserService;
+        this.kafkaProducerService = kafkaProducerService;
     }
 
     @Transactional
@@ -39,11 +39,14 @@ public class CodeService {
         log.info("CSV parsed successfully. {} records found", entities.size());
 
         validateAgainstDatabase(entities);
+        for (int i = 0; i < entities.size(); i++) {
+            CodeEntity entity = entities.get(i);
+            int partitionId = i % 3;
 
-        codeRepository.saveAll(entities);
+            kafkaProducerService.send(entity, partitionId);
+        }
 
-        log.info("CSV upload completed successfully. {} records imported", entities.size());
-
+        log.info("CSV records sent to Kafka. {} records published", entities.size());
         return entities.size();
     }
 
