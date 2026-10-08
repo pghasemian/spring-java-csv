@@ -5,6 +5,8 @@ import com.example.csvcodeservice.exception.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +25,8 @@ import java.util.Set;
 @Service
 public class CsvParserService {
 
+    private static final Logger log = LoggerFactory.getLogger(CsvParserService.class);
+
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
@@ -40,10 +44,12 @@ public class CsvParserService {
     public List<CodeEntity> parse(MultipartFile file) {
 
         if (file == null || file.isEmpty()) {
-            throw new CsvValidationException(
-                    "CSV file must not be empty"
-            );
+            log.warn("CSV file is empty");
+
+            throw new CsvValidationException("CSV file must not be empty");
         }
+
+        log.info("Starting CSV parsing. File: {}", file.getOriginalFilename());
 
         try (
                 Reader reader = new InputStreamReader(
@@ -69,6 +75,9 @@ public class CsvParserService {
                 CodeEntity entity = parseRecord(record);
 
                 if (!codes.add(entity.getCode())) {
+
+                    log.warn("Duplicate code found in CSV: {}", entity.getCode());
+
                     throw new CsvValidationException(
                             "Duplicate code found in CSV: "
                                     + entity.getCode()
@@ -79,14 +88,17 @@ public class CsvParserService {
             }
 
             if (result.isEmpty()) {
-                throw new CsvValidationException(
-                        "CSV file does not contain any data"
-                );
+                log.warn("CSV file is empty");
+                throw new CsvValidationException("CSV file is empty");
             }
 
+            log.info("CSV parsing completed successfully. {} records parsed", result.size());
             return result;
 
         } catch (IOException e) {
+
+            log.error("Could not read CSV file", e);
+
             throw new CsvValidationException(
                     "Could not read CSV file"
             );
@@ -144,6 +156,8 @@ public class CsvParserService {
 
             } catch (NumberFormatException e) {
 
+                log.warn("Invalid sortingPriority at row {}: {}", record.getRecordNumber(), sortingPriority);
+
                 throw new CsvValidationException(
                         "Invalid sortingPriority at row "
                                 + record.getRecordNumber()
@@ -162,6 +176,9 @@ public class CsvParserService {
         String value = nullable(record, column);
 
         if (value == null) {
+
+            log.warn("Required column '{}' is empty at row {}", column, record.getRecordNumber());
+
             throw new CsvValidationException(
                     "Column '" + column
                             + "' cannot be empty at row "
@@ -200,10 +217,10 @@ public class CsvParserService {
 
         } catch (DateTimeParseException e) {
 
+            log.warn("Invalid date '{}' for field {}", value, field);
+
             throw new CsvValidationException(
-                    "Invalid date '" + value
-                            + "' for field " + field
-            );
+                    "Invalid date '" + value + "' for field " + field);
         }
     }
 
@@ -216,10 +233,13 @@ public class CsvParserService {
 
         if (!actualHeaders.equals(EXPECTED_HEADERS)) {
 
+            log.warn("Invalid CSV headers. Actual: {}", actualHeaders);
+
             throw new CsvValidationException(
                     "Invalid CSV headers. Expected: "
                             + EXPECTED_HEADERS
             );
         }
+        log.info("CSV headers validated successfully");
     }
 }
