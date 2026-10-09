@@ -31,6 +31,11 @@ public class KafkaConsumerService {
 
             CodeEntity entity = objectMapper.readValue(message, CodeEntity.class);
 
+            if (codeRepository.existsByCode(entity.getCode())) {
+                log.warn("Duplicate code skipped: {}", entity.getCode());
+                return;
+            }
+
             codeRepository.save(entity);
 
             log.info("Code consumed and saved to database. code={}", entity.getCode());

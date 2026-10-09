@@ -55,12 +55,11 @@ class CodeControllerTest {
                                 .file(file)
                 )
                 .andExpect(status().isCreated())
-                .andExpect(
-                        jsonPath("$.message")
-                                .value("CSV uploaded successfully")
+                .andExpect(jsonPath("$.message")
+                        .value("CSV published to Kafka successfully")
                 )
                 .andExpect(
-                        jsonPath("$.recordsImported")
+                        jsonPath("$.recordsPublished")
                                 .value(18)
                 );
 

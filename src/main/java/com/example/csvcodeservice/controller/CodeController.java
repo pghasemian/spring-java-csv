@@ -27,8 +27,10 @@ public class CodeController {
         int count = codeService.upload(file);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(Map.of("message", "CSV uploaded successfully",
-                        "recordsImported", count));
+                .body(Map.of(
+                        "message", "CSV published to Kafka successfully",
+                        "recordsPublished", count
+                ));
     }
 
     @GetMapping

@@ -1,3 +1,4 @@
+
 package com.example.csvcodeservice.service;
 
 import com.example.csvcodeservice.dto.CodeResponse;
@@ -30,6 +31,9 @@ class CodeServiceTest {
     @Mock
     private CsvParserService csvParserService;
 
+    @Mock
+    private KafkaProducerService kafkaProducerService;
+
     @InjectMocks
     private CodeService codeService;
 
@@ -45,35 +49,26 @@ class CodeServiceTest {
         entity.setCode("TEST001");
         entity.setDisplayValue("Test Value");
         entity.setLongDescription("Test description");
-        entity.setFromDate(
-                LocalDate.of(2026, 1, 1)
-        );
-        entity.setToDate(
-                LocalDate.of(2026, 12, 31)
-        );
+        entity.setFromDate(LocalDate.of(2026, 1, 1));
+        entity.setToDate(LocalDate.of(2026, 12, 31));
         entity.setSortingPriority(1);
     }
 
     @Test
     void shouldUploadData() {
 
-        MultipartFile file =
-                new MockMultipartFile(
-                        "file",
-                        "test.csv",
-                        "text/csv",
-                        "test".getBytes()
-                );
+        MultipartFile file = new MockMultipartFile(
+                "file",
+                "test.csv",
+                "text/csv",
+                "test".getBytes()
+        );
 
         when(csvParserService.parse(file))
                 .thenReturn(List.of(entity));
 
         when(codeRepository.existsByCode("TEST001"))
                 .thenReturn(false);
-
-        when(codeRepository.saveAll(
-                List.of(entity)
-        )).thenReturn(List.of(entity));
 
         int result = codeService.upload(file);
 
@@ -84,20 +79,22 @@ class CodeServiceTest {
         verify(codeRepository)
                 .existsByCode("TEST001");
 
-        verify(codeRepository)
-                .saveAll(List.of(entity));
+        verify(kafkaProducerService)
+                .send(entity, 0);
+
+        verify(codeRepository, never())
+                .saveAll(anyList());
     }
 
     @Test
     void shouldRejectExistingCode() {
 
-        MultipartFile file =
-                new MockMultipartFile(
-                        "file",
-                        "test.csv",
-                        "text/csv",
-                        "test".getBytes()
-                );
+        MultipartFile file = new MockMultipartFile(
+                "file",
+                "test.csv",
+                "text/csv",
+                "test".getBytes()
+        );
 
         when(csvParserService.parse(file))
                 .thenReturn(List.of(entity));
@@ -105,19 +102,18 @@ class CodeServiceTest {
         when(codeRepository.existsByCode("TEST001"))
                 .thenReturn(true);
 
-        CsvValidationException exception =
-                assertThrows(
-                        CsvValidationException.class,
-                        () -> codeService.upload(file)
-                );
+        CsvValidationException exception = assertThrows(
+                CsvValidationException.class,
+                () -> codeService.upload(file)
+        );
 
         assertEquals(
                 "Code already exists: TEST001",
                 exception.getMessage()
         );
 
-        verify(codeRepository, never())
-                .saveAll(anyList());
+        verify(kafkaProducerService, never())
+                .send(any(CodeEntity.class), anyInt());
     }
 
     @Test
@@ -126,32 +122,16 @@ class CodeServiceTest {
         when(codeRepository.findAll())
                 .thenReturn(List.of(entity));
 
-        List<CodeResponse> result =
-                codeService.findAll();
+        List<CodeResponse> result = codeService.findAll();
 
         assertEquals(1, result.size());
 
         CodeResponse response = result.getFirst();
 
-        assertEquals(
-                "TestSource",
-                response.source()
-        );
-
-        assertEquals(
-                "TestList",
-                response.codeListCode()
-        );
-
-        assertEquals(
-                "TEST001",
-                response.code()
-        );
-
-        assertEquals(
-                "Test Value",
-                response.displayValue()
-        );
+        assertEquals("TestSource", response.source());
+        assertEquals("TestList", response.codeListCode());
+        assertEquals("TEST001", response.code());
+        assertEquals("Test Value", response.displayValue());
     }
 
     @Test
@@ -160,21 +140,12 @@ class CodeServiceTest {
         when(codeRepository.findByCode("TEST001"))
                 .thenReturn(Optional.of(entity));
 
-        CodeResponse result =
-                codeService.findByCode("TEST001");
+        CodeResponse result = codeService.findByCode("TEST001");
 
-        assertEquals(
-                "TEST001",
-                result.code()
-        );
+        assertEquals("TEST001", result.code());
+        assertEquals("Test Value", result.displayValue());
 
-        assertEquals(
-                "Test Value",
-                result.displayValue()
-        );
-
-        verify(codeRepository)
-                .findByCode("TEST001");
+        verify(codeRepository).findByCode("TEST001");
     }
 
     @Test
@@ -183,11 +154,10 @@ class CodeServiceTest {
         when(codeRepository.findByCode("UNKNOWN"))
                 .thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> codeService.findByCode("UNKNOWN")
-                );
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> codeService.findByCode("UNKNOWN")
+        );
 
         assertEquals(
                 "Code not found: UNKNOWN",
@@ -200,7 +170,6 @@ class CodeServiceTest {
 
         codeService.deleteAll();
 
-        verify(codeRepository)
-                .deleteAllInBatch();
+        verify(codeRepository).deleteAllInBatch();
     }
 }
