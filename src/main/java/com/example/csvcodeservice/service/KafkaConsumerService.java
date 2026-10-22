@@ -25,8 +25,11 @@ public class KafkaConsumerService {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "codes", groupId = "code-consumer-group")
-    public void consume(String message, Acknowledgment acknowledgment) {
+    @KafkaListener(
+            id = "codesListener",
+            topics = "codes",
+            groupId = "code-consumer-group"
+    )    public void consume(String message, Acknowledgment acknowledgment) {
 
         try {
 
