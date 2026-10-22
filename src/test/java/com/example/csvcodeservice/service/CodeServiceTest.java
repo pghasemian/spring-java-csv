@@ -34,6 +34,9 @@ class CodeServiceTest {
     @Mock
     private KafkaProducerService kafkaProducerService;
 
+    @Mock
+    private ShardService shardService;
+
     @InjectMocks
     private CodeService codeService;
 
@@ -69,6 +72,9 @@ class CodeServiceTest {
 
         when(codeRepository.existsByCode("TEST001"))
                 .thenReturn(false);
+
+        when(shardService.getShardId("TEST001"))
+                .thenReturn(0);
 
         int result = codeService.upload(file);
 
