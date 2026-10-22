@@ -15,6 +15,7 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -76,6 +77,8 @@ public class KafkaConfig {
 
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
+        config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
         return new DefaultKafkaConsumerFactory<>(config);
     }
 
@@ -89,6 +92,7 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
 
         factory.setConsumerFactory(consumerFactory);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 
         return factory;
     }
