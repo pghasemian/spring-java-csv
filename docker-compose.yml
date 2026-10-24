@@ -110,8 +110,18 @@ services:
       - kafka-2
       - kafka-3
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
 
 volumes:
   kafka-1-data:
   kafka-2-data:
   kafka-3-data:
+  grafana-data:
