@@ -22,6 +22,7 @@ public class KafkaOffsetRangeConsumer {
         this.consumerFactory = consumerFactory;
     }
 
+
     public List<OffsetRecord> readRange(
             String topic,
             int partitionNumber,
@@ -31,15 +32,11 @@ public class KafkaOffsetRangeConsumer {
         if (topic == null || topic.isBlank()) {
             throw new IllegalArgumentException("Topic must not be blank");
         }
-
         if (partitionNumber < 0) {
-            throw new IllegalArgumentException(
-                    "Partition must not be negative");
+            throw new IllegalArgumentException("Partition must not be negative");
         }
-
         if (startOffset < 0 || endOffset < startOffset) {
-            throw new IllegalArgumentException(
-                    "Invalid offset range");
+            throw new IllegalArgumentException("Invalid offset range");
         }
 
         TopicPartition partition =
@@ -50,31 +47,33 @@ public class KafkaOffsetRangeConsumer {
 
             consumer.assign(List.of(partition));
 
+            long beginningOffset =
+                    consumer.beginningOffsets(List.of(partition)).get(partition);
             long endOffsetExclusive =
-                    consumer.endOffsets(List.of(partition))
-                            .get(partition);
+                    consumer.endOffsets(List.of(partition)).get(partition);
 
-            if (startOffset >= endOffsetExclusive) {
-                return List.of();
+            if (startOffset < beginningOffset) {
+                throw new IllegalArgumentException(
+                        "Start offset is no longer available");
             }
 
-            long lastOffset = Math.min(
-                    endOffset,
-                    endOffsetExclusive - 1
-            );
+            if (startOffset >= endOffsetExclusive
+                    || endOffset >= endOffsetExclusive) {
+                throw new IllegalArgumentException(
+                        "Requested offset range is not available");
+            }
 
             consumer.seek(partition, startOffset);
 
             List<OffsetRecord> records = new ArrayList<>();
 
-            while (consumer.position(partition) <= lastOffset) {
-                var polledRecords = consumer.poll(
-                        Duration.ofMillis(500));
+            while (consumer.position(partition) <= endOffset) {
+                var polledRecords = consumer.poll(Duration.ofMillis(500));
 
                 for (ConsumerRecord<String, String> record
                         : polledRecords.records(partition)) {
 
-                    if (record.offset() > lastOffset) {
+                    if (record.offset() > endOffset) {
                         break;
                     }
 
@@ -94,6 +93,7 @@ public class KafkaOffsetRangeConsumer {
             return records;
         }
     }
+
 
     public record OffsetRecord(
             String topic,

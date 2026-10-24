@@ -51,26 +51,28 @@ class KafkaOffsetRangeConsumerTest {
     }
 
     @Test
-    void shouldReturnEmptyWhenStartOffsetIsBeyondEndOfPartition() {
+    void shouldRejectRangeBeyondEndOfPartition() {
         TopicPartition partition = new TopicPartition("codes", 1);
 
         when(consumerFactory.createConsumer()).thenReturn(consumer);
+        when(consumer.beginningOffsets(List.of(partition)))
+                .thenReturn(Map.of(partition, 0L));
         when(consumer.endOffsets(List.of(partition)))
                 .thenReturn(Map.of(partition, 10L));
 
-        assertEquals(
-                List.of(),
-                service.readRange("codes", 1, 10, 20)
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.readRange("codes", 1, 10, 20)
         );
 
-        verify(consumer, never()).poll(any(Duration.class));
         verify(consumer).close();
     }
 
     @Test
     void shouldReadOnlyRequestedPartitionAndOffsetRange() {
         TopicPartition partition = new TopicPartition("codes", 1);
-
+        when(consumer.beginningOffsets(List.of(partition)))
+                .thenReturn(Map.of(partition, 0L));
         when(consumerFactory.createConsumer()).thenReturn(consumer);
         when(consumer.endOffsets(List.of(partition)))
                 .thenReturn(Map.of(partition, 30L));
