@@ -92,6 +92,24 @@ services:
     volumes:
       - kafka-3-data:/var/lib/kafka/data
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+
 
 volumes:
   kafka-1-data:
